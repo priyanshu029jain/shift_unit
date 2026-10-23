@@ -6,8 +6,15 @@ Verilog shift units for a 16-bit datapath.
 |---|---|---|
 | Logical shift unit | `logical_shift_unit.v` | Done, with testbench |
 | Circular (rotate) shift unit | `circular_shift_unit.v` | Done, with testbench |
+| Arithmetic shift unit | `arithmetic_shift_unit.v` | Done, with testbench |
 
-Both units have the same ports and the same 4-stage barrel structure. The only difference is what fills the empty bit positions: zeros for the logical unit, the bits that fell off the other end for the circular unit.
+All three units have the same ports and the same 4-stage barrel structure. The only difference is what fills the empty bit positions:
+
+| Unit | Left shift fills with | Right shift fills with |
+|---|---|---|
+| Logical | `0` | `0` |
+| Circular | bits from the MSB end | bits from the LSB end |
+| Arithmetic | `0` | the sign bit `data_in[15]` |
 
 ## Logical shift unit
 
@@ -70,6 +77,32 @@ With `data_in = 16'hB3C5` (`1011001111000101`):
 | 0 (left) | 1 | `0110011110001011` (`16'h678B`) |
 | 1 (right) | 4 | `0101101100111100` (`16'h5B3C`) |
 
+## Arithmetic shift unit
+
+`arithmetic_shift_unit` shifts a 16-bit two's-complement value left or right by 0–15 positions. A right shift copies the sign bit into the empty positions, so the value keeps its sign and the result equals division by 2ⁿ rounded toward negative infinity. A left shift fills with zeros and is the same as a logical left shift (multiplication by 2ⁿ, without overflow detection).
+
+### Ports
+
+| Port | Direction | Width | Description |
+|---|---|---|---|
+| `data_in` | input | 16 | Signed value to shift |
+| `shamt` | input | 4 | Shift amount (0–15) |
+| `dir` | input | 1 | `0` = shift left, `1` = shift right |
+| `data_out` | output | 16 | Shifted result |
+
+### Design
+
+It uses the same four stages (`s0`–`s3`, shifting by 1, 2, 4 and 8 under control of `shamt[0]`–`shamt[3]`). In right shifts, each stage fills the top bits with copies of `data_in[15]`, the original sign bit.
+
+### Example
+
+Right shifts by 4 of a negative and a positive value:
+
+| `data_in` | `dir` | `shamt` | `data_out` |
+|---|---|---|---|
+| `1011001111000101` (`16'hB3C5`, negative) | 1 (right) | 4 | `1111101100111100` (`16'hFB3C`) |
+| `0011001111000101` (`16'h33C5`, positive) | 1 (right) | 4 | `0000001100111100` (`16'h033C`) |
+
 ## Simulation
 
 Requires [Icarus Verilog](https://steveicarus.github.io/iverilog/) and, for waveforms, [GTKWave](https://gtkwave.sourceforge.net/).
@@ -90,10 +123,18 @@ vvp circular.vvp
 gtkwave circular_shift_unit_tb.vcd
 ```
 
-Each testbench (`logical_shift_unit_tb.v`, `circular_shift_unit_tb.v`):
+Arithmetic shift unit:
 
-1. Applies a few fixed shifts to `16'hB3C5` and prints the results.
-2. Applies random inputs and compares `data_out` with a behavioral model built from Verilog's `<<` and `>>` operators, reporting any mismatch. For the circular unit the model is `(x << n) | (x >> (16 - n))` for left and the mirror for right.
+```sh
+iverilog -o arithmetic.vvp arithmetic_shift_unit.v arithmetic_shift_unit_tb.v
+vvp arithmetic.vvp
+gtkwave arithmetic_shift_unit_tb.vcd
+```
+
+Each testbench (`logical_shift_unit_tb.v`, `circular_shift_unit_tb.v`, `arithmetic_shift_unit_tb.v`):
+
+1. Applies a few fixed shifts to `16'hB3C5` and prints the results. The arithmetic testbench also uses the positive value `16'h33C5`.
+2. Applies random inputs and compares `data_out` with a behavioral model built from Verilog's `<<` and `>>` operators, reporting any mismatch. For the circular unit the model is `(x << n) | (x >> (16 - n))` for left and the mirror for right. For the arithmetic unit the right-shift model is `$signed(x) >>> n`.
 3. Prints `ALL TESTS PASSED` or the number of failures.
 4. Writes a `.vcd` waveform that includes the internal stage signals `s0`–`s3`.
 
@@ -108,3 +149,7 @@ Logical shift unit:
 Circular shift unit:
 
 ![GTKWave output of the circular shift unit testbench](circular_shift_unit.png)
+
+Arithmetic shift unit:
+
+![GTKWave output of the arithmetic shift unit testbench](arithmetic_shift_unit.png)
