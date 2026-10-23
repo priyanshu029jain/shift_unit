@@ -1,0 +1,99 @@
+Static timing analysis: arithmetic_shift_unit, WIDTH = 16
+Library:      sky130_fd_sc_hd__tt_025C_1v80
+Constraint:   virtual clock vclk, period 10 ns, input/output delay 0
+Input drive:  sky130_fd_sc_hd__inv_2
+Output load:  0.033442 pF
+
+==================== Longest path (setup) ========================
+Startpoint: dir (input port clocked by vclk)
+Endpoint: data_out[7] (output port clocked by vclk)
+Path Group: vclk
+Path Type: max
+
+     Cap     Slew    Delay     Time   Description
+---------------------------------------------------------------------------
+            0.000    0.000    0.000   clock vclk (rise edge)
+                     0.000    0.000   clock network delay (ideal)
+                     0.000    0.000 ^ input external delay
+   0.088    0.453    0.276    0.276 ^ dir (in)
+            0.453    0.000    0.276 ^ _148_/A (sky130_fd_sc_hd__nand2_1)
+   0.026    0.304    0.293    0.569 v _148_/Y (sky130_fd_sc_hd__nand2_1)
+            0.304    0.002    0.571 v _248_/A (sky130_fd_sc_hd__nor4_1)
+   0.005    0.320    0.416    0.988 ^ _248_/Y (sky130_fd_sc_hd__nor4_1)
+            0.320    0.003    0.991 ^ _251_/A (sky130_fd_sc_hd__nor3_1)
+   0.005    0.090    0.120    1.111 v _251_/Y (sky130_fd_sc_hd__nor3_1)
+            0.090    0.003    1.114 v _275_/A2 (sky130_fd_sc_hd__o221a_1)
+   0.004    0.059    0.260    1.373 v _275_/X (sky130_fd_sc_hd__o221a_1)
+            0.059    0.002    1.376 v _277_/A2 (sky130_fd_sc_hd__o21ai_0)
+   0.033    1.192    0.756    2.132 ^ _277_/Y (sky130_fd_sc_hd__o21ai_0)
+            1.192    0.001    2.132 ^ data_out[7] (out)
+                              2.132   data arrival time
+
+            0.000   10.000   10.000   clock vclk (rise edge)
+                     0.000   10.000   clock network delay (ideal)
+                     0.000   10.000   clock reconvergence pessimism
+                     0.000   10.000   output external delay
+                             10.000   data required time
+---------------------------------------------------------------------------
+                             10.000   data required time
+                             -2.132   data arrival time
+---------------------------------------------------------------------------
+                              7.868   slack (MET)
+
+
+
+==================== Shortest path (hold) ========================
+Startpoint: data_in[15] (input port clocked by vclk)
+Endpoint: data_out[10] (output port clocked by vclk)
+Path Group: vclk
+Path Type: min
+
+     Cap     Slew    Delay     Time   Description
+---------------------------------------------------------------------------
+            0.000    0.000    0.000   clock vclk (rise edge)
+                     0.000    0.000   clock network delay (ideal)
+                     0.000    0.000 ^ input external delay
+   0.017    0.091    0.055    0.055 ^ data_in[15] (in)
+            0.091    0.000    0.055 ^ _282_/A1 (sky130_fd_sc_hd__a221o_1)
+   0.033    0.422    0.333    0.389 ^ _282_/X (sky130_fd_sc_hd__a221o_1)
+            0.422    0.001    0.389 ^ data_out[10] (out)
+                              0.389   data arrival time
+
+            0.000    0.000    0.000   clock vclk (rise edge)
+                     0.000    0.000   clock network delay (ideal)
+                     0.000    0.000   clock reconvergence pessimism
+                     0.000    0.000   output external delay
+                              0.000   data required time
+---------------------------------------------------------------------------
+                              0.000   data required time
+                             -0.389   data arrival time
+---------------------------------------------------------------------------
+                              0.389   slack (MET)
+
+
+
+==================== Design rule checks ==========================
+max_transition
+
+Pin _260_/Y ^
+max_transition     1.484
+transition_time    1.192
+------------------------
+Slack              0.292 (MET)
+
+
+==================== Slack =======================================
+wns 0.000
+tns 0.000
+
+==================== Power (default switching activity) ==========
+Group                  Internal  Switching    Leakage      Total
+                          Power      Power      Power      Power
+----------------------------------------------------------------
+Sequential            0.000e+00  0.000e+00  0.000e+00  0.000e+00   0.0%
+Combinational         0.000e+00  2.348e-05  2.851e-10  2.348e-05 100.0%
+Macro                 0.000e+00  0.000e+00  0.000e+00  0.000e+00   0.0%
+Pad                   0.000e+00  0.000e+00  0.000e+00  0.000e+00   0.0%
+----------------------------------------------------------------
+Total                 0.000e+00  2.348e-05  2.851e-10  2.348e-05 100.0%
+                           0.0%     100.0%       0.0%

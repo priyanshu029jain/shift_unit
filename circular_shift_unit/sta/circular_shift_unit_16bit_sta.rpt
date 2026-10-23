@@ -1,0 +1,95 @@
+Static timing analysis: circular_shift_unit, WIDTH = 16
+Library:      sky130_fd_sc_hd__tt_025C_1v80
+Constraint:   virtual clock vclk, period 10 ns, input/output delay 0
+Input drive:  sky130_fd_sc_hd__inv_2
+Output load:  0.033442 pF
+
+==================== Longest path (setup) ========================
+Startpoint: shamt[0] (input port clocked by vclk)
+Endpoint: data_out[1] (output port clocked by vclk)
+Path Group: vclk
+Path Type: max
+
+     Cap     Slew    Delay     Time   Description
+---------------------------------------------------------------------------
+            0.000    0.000    0.000   clock vclk (rise edge)
+                     0.000    0.000   clock network delay (ideal)
+                     0.000    0.000 ^ input external delay
+   0.166    0.843    0.514    0.514 ^ shamt[0] (in)
+            0.843    0.000    0.514 ^ _177_/S0 (sky130_fd_sc_hd__mux4_2)
+   0.006    0.091    0.609    1.123 v _177_/X (sky130_fd_sc_hd__mux4_2)
+            0.091    0.002    1.126 v _190_/A3 (sky130_fd_sc_hd__mux4_2)
+   0.004    0.084    0.481    1.606 v _190_/X (sky130_fd_sc_hd__mux4_2)
+            0.084    0.002    1.609 v _197_/A3 (sky130_fd_sc_hd__mux4_2)
+   0.033    0.240    0.583    2.192 v _197_/X (sky130_fd_sc_hd__mux4_2)
+            0.240    0.001    2.192 v data_out[1] (out)
+                              2.192   data arrival time
+
+            0.000   10.000   10.000   clock vclk (rise edge)
+                     0.000   10.000   clock network delay (ideal)
+                     0.000   10.000   clock reconvergence pessimism
+                     0.000   10.000   output external delay
+                             10.000   data required time
+---------------------------------------------------------------------------
+                             10.000   data required time
+                             -2.192   data arrival time
+---------------------------------------------------------------------------
+                              7.808   slack (MET)
+
+
+
+==================== Shortest path (hold) ========================
+Startpoint: shamt[2] (input port clocked by vclk)
+Endpoint: data_out[0] (output port clocked by vclk)
+Path Group: vclk
+Path Type: min
+
+     Cap     Slew    Delay     Time   Description
+---------------------------------------------------------------------------
+            0.000    0.000    0.000   clock vclk (rise edge)
+                     0.000    0.000   clock network delay (ideal)
+                     0.000    0.000 v input external delay
+   0.068    0.178    0.108    0.108 v shamt[2] (in)
+            0.178    0.000    0.108 v _154_/S1 (sky130_fd_sc_hd__mux4_2)
+   0.033    0.263    0.375    0.483 ^ _154_/X (sky130_fd_sc_hd__mux4_2)
+            0.263    0.001    0.484 ^ data_out[0] (out)
+                              0.484   data arrival time
+
+            0.000    0.000    0.000   clock vclk (rise edge)
+                     0.000    0.000   clock network delay (ideal)
+                     0.000    0.000   clock reconvergence pessimism
+                     0.000    0.000   output external delay
+                              0.000   data required time
+---------------------------------------------------------------------------
+                              0.000   data required time
+                             -0.484   data arrival time
+---------------------------------------------------------------------------
+                              0.484   slack (MET)
+
+
+
+==================== Design rule checks ==========================
+max_transition
+
+Pin _134_/S0 ^
+max_transition     1.500
+transition_time    1.048
+------------------------
+Slack              0.452 (MET)
+
+
+==================== Slack =======================================
+wns 0.000
+tns 0.000
+
+==================== Power (default switching activity) ==========
+Group                  Internal  Switching    Leakage      Total
+                          Power      Power      Power      Power
+----------------------------------------------------------------
+Sequential            0.000e+00  0.000e+00  0.000e+00  0.000e+00   0.0%
+Combinational         0.000e+00  1.623e-05  4.954e-10  1.623e-05 100.0%
+Macro                 0.000e+00  0.000e+00  0.000e+00  0.000e+00   0.0%
+Pad                   0.000e+00  0.000e+00  0.000e+00  0.000e+00   0.0%
+----------------------------------------------------------------
+Total                 0.000e+00  1.623e-05  4.954e-10  1.623e-05 100.0%
+                           0.0%     100.0%       0.0%

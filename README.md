@@ -20,7 +20,8 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── logical_shift_unit_directed_tb.v   directed testbench
 │   ├── logical_shift_unit_random_tb.v     random self-checking testbench
 │   ├── logical_shift_unit.png             waveform screenshot
-│   └── synth/                             sky130 netlist and area report
+│   ├── synth/                             sky130 netlist and area report
+│   └── sta/                               OpenSTA timing report
 ├── circular_shift_unit/
 │   ├── circular_shift_unit.v
 │   ├── circular_shift_unit_directed_tb.v
@@ -38,6 +39,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 ├── simulate.bat                           same, for Windows PowerShell / cmd
 ├── random.sh                              run a random testbench and print the pass rate
 ├── synthesis.tcl                          Yosys synthesis to sky130 + equivalence check
+├── STA.tcl                                OpenSTA static timing analysis of the netlists
 ├── .gitattributes
 ├── .gitignore
 ├── LICENSE
@@ -379,6 +381,61 @@ At the default `WIDTH = 16`:
 | `barrel_shifter` | 187 | 1291.24 | Pass |
 
 Area is the sum of the cell areas from the liberty file. It does not include routing or placement overhead.
+
+## Static timing analysis
+
+`STA.tcl` runs static timing analysis with [OpenSTA](https://github.com/The-OpenROAD-Project/OpenSTA) on the netlists written by `synthesis.tcl`, so run synthesis first.
+
+```sh
+sta -no_splash -exit STA.tcl                                 # all modules, WIDTH = 16
+MODULE=barrel_shifter sta -no_splash -exit STA.tcl           # one module
+MODULE=all WIDTH=32 PERIOD=5 sta -no_splash -exit STA.tcl    # other width and period
+```
+
+OpenSTA doesn't pass command-line arguments to scripts, so the options are environment variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MODULE` | `all` | Module to analyze, or `all` |
+| `WIDTH` | `16` | Which netlist to analyze. It must already be synthesized at this width. |
+| `PERIOD` | `10` | Clock period for the timing constraint, in ns |
+| `SKY130_LIB` | `../../pdks/sky130/sky130.lib` | Liberty file, as for `synthesis.tcl` |
+
+### Constraints
+
+The shift units are purely combinational, with no clock and no flip-flops. They are therefore timed against a virtual clock, `vclk`. Every input is launched, and every output captured, on a `vclk` edge with zero external delay. That makes:
+
+- **Max delay** (longest input-to-output path) = `PERIOD` − worst setup slack
+- **Min delay** (shortest input-to-output path) = worst hold slack
+- **Fmax** = 1 / max delay: the highest clock rate at which the unit could sit between two registers, ignoring register setup time and clock-to-Q delay
+
+The inputs are driven by a `sky130_fd_sc_hd__inv_2` and each output drives 0.033442 pF, the same defaults OpenLane uses for this library. The library is the typical corner only (tt, 25 °C, 1.8 V), and there is no wire parasitics data, because the design isn't placed and routed.
+
+### Output
+
+The script prints a summary table. For each module it also writes `<module>/sta/<module>_<WIDTH>bit_sta.rpt`, containing:
+
+- the full longest (setup) and shortest (hold) paths, with slew, capacitance and delay at every cell
+- the max-transition design rule check
+- WNS and TNS
+- a power estimate using OpenSTA's default switching activity
+
+If a module misses timing at the given `PERIOD`, or breaks the max-transition rule, the summary ends with a warning. OpenSTA always exits with status 0, though, so scripts can't detect a failure from the exit code.
+
+OpenSTA prints `Warning: ... default_operating_condition tt_025C_1v80 not found` when it reads this liberty file. The warning is harmless: the file declares its default operating condition before defining it, and the library is still read correctly.
+
+### Results
+
+At `WIDTH = 16`, `PERIOD = 10` ns:
+
+| Module | Max delay (ns) | Fmax (MHz) | Min delay (ns) | Max transition | Critical path |
+|---|---|---|---|---|---|
+| `logical_shift_unit` | 2.008 | 497.9 | 0.438 | OK | `shamt[0]` → `data_out[4]` |
+| `circular_shift_unit` | 2.192 | 456.2 | 0.484 | OK | `shamt[0]` → `data_out[1]` |
+| `arithmetic_shift_unit` | 2.132 | 469.0 | 0.389 | OK | `dir` → `data_out[7]` |
+| `barrel_shifter` | 2.359 | 423.9 | 0.401 | OK | `dir` → `data_out[1]` |
+
+All four meet timing at 10 ns with more than 7.6 ns of slack. The critical paths start at `dir` or `shamt`, the control inputs that fan out to every bit. A large share of each path is the input itself charging that fanout: in the barrel shifter, `dir` alone takes 0.50 ns. Another large share is the last gate driving the output load.
 
 ## License
 
