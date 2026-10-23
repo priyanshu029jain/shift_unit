@@ -2,12 +2,40 @@
 
 Verilog shift units for a 16-bit datapath.
 
-| Module | File | Status |
+| Module | Folder | Status |
 |---|---|---|
-| Logical shift unit | `logical_shift_unit.v` | Done, with testbench |
-| Circular (rotate) shift unit | `circular_shift_unit.v` | Done, with testbench |
-| Arithmetic shift unit | `arithmetic_shift_unit.v` | Done, with testbench |
-| Barrel shifter (all three in one) | `barrel_shifter.v` | Done, with testbench |
+| Logical shift unit | [`logical_shift_unit/`](logical_shift_unit/) | Done, with testbenches |
+| Circular (rotate) shift unit | [`circular_shift_unit/`](circular_shift_unit/) | Done, with testbenches |
+| Arithmetic shift unit | [`arithmetic_shift_unit/`](arithmetic_shift_unit/) | Done, with testbenches |
+| Barrel shifter (all three in one) | [`barrel_shifter/`](barrel_shifter/) | Done, with testbenches |
+
+## Repository layout
+
+Each module has its own folder, holding the design, its two testbenches and, where available, a GTKWave screenshot. Every file is named after its folder:
+
+```text
+.
+├── logical_shift_unit/
+│   ├── logical_shift_unit.v               design
+│   ├── logical_shift_unit_directed_tb.v   directed testbench
+│   ├── logical_shift_unit_random_tb.v     random self-checking testbench
+│   └── logical_shift_unit.png             waveform screenshot
+├── circular_shift_unit/
+│   ├── circular_shift_unit.v
+│   ├── circular_shift_unit_directed_tb.v
+│   ├── circular_shift_unit_random_tb.v
+│   └── circular_shift_unit.png
+├── arithmetic_shift_unit/
+│   ├── arithmetic_shift_unit.v
+│   ├── arithmetic_shift_unit_directed_tb.v
+│   └── arithmetic_shift_unit_random_tb.v
+├── barrel_shifter/
+│   ├── barrel_shifter.v
+│   ├── barrel_shifter_directed_tb.v
+│   └── barrel_shifter_random_tb.v
+├── .gitignore
+└── README.md
+```
 
 The three single-purpose units have the same ports and the same 4-stage barrel structure. The only difference is what fills the empty bit positions:
 
@@ -154,8 +182,8 @@ Each unit has two testbenches:
 
 | Testbench | Purpose |
 |---|---|
-| `<unit>_shift_unit_directed_tb.v` | Sweeps every shift amount (0–15) in both directions on a fixed input and prints each result. Use it to read the behavior and to view a clean waveform in GTKWave. |
-| `<unit>_shift_unit_random_tb.v` | Applies `NUM_TESTS` (default 1000) random inputs and checks each `data_out` against a behavioral model, printing any mismatch and then `ALL 1000 TESTS PASSED` or the failure count. |
+| `<module>_directed_tb.v` | Sweeps every shift amount (0–15) in both directions on a fixed input and prints each result. Use it to read the behavior and to view a clean waveform in GTKWave. |
+| `<module>_random_tb.v` | Applies `NUM_TESTS` (default 1000) random inputs and checks each `data_out` against a behavioral model, printing any mismatch and then `ALL 1000 TESTS PASSED` or the failure count. |
 
 The directed testbenches use the input `16'hB3C5`. The arithmetic one also uses the positive value `16'h33C5`, so you can see the sign bit fill with both `1` and `0`. The barrel shifter's directed testbench runs the sweep once for each mode: logical, arithmetic, then rotate.
 
@@ -171,46 +199,35 @@ The barrel shifter's random testbench also randomizes `mode`, including `2'b11`,
 
 Every testbench writes a `.vcd` file named after itself, which includes the internal stage signals `s0`–`s3`.
 
-To run a testbench, replace `<unit>` with `logical`, `circular` or `arithmetic`. The barrel shifter's files are named differently, so its commands are listed separately below.
+To run a testbench, go into the module's folder. In the commands below, replace `<module>` with the folder name: `logical_shift_unit`, `circular_shift_unit`, `arithmetic_shift_unit` or `barrel_shifter`.
+
+```sh
+cd <module>
+```
 
 Directed test:
 
 ```sh
-iverilog -o <unit>_directed.vvp <unit>_shift_unit.v <unit>_shift_unit_directed_tb.v
-vvp <unit>_directed.vvp
-gtkwave <unit>_shift_unit_directed_tb.vcd
+iverilog -o <module>_directed.vvp <module>.v <module>_directed_tb.v
+vvp <module>_directed.vvp
+gtkwave <module>_directed_tb.vcd
 ```
 
 Random self-checking test:
 
 ```sh
-iverilog -o <unit>_random.vvp <unit>_shift_unit.v <unit>_shift_unit_random_tb.v
-vvp <unit>_random.vvp
+iverilog -o <module>_random.vvp <module>.v <module>_random_tb.v
+vvp <module>_random.vvp
 ```
 
-Barrel shifter:
-
-```sh
-iverilog -o barrel_directed.vvp barrel_shifter.v barrel_shifter_directed_tb.v
-vvp barrel_directed.vvp
-gtkwave barrel_shifter_directed_tb.vcd
-
-iverilog -o barrel_random.vvp barrel_shifter.v barrel_shifter_random_tb.v
-vvp barrel_random.vvp
-```
-
-The `.vvp` and `.vcd` files are build outputs and are ignored by git.
+The `.vvp` and `.vcd` files are written into the module's folder. They are build outputs and are ignored by git.
 
 ### Waveforms
 
 Logical shift unit:
 
-![GTKWave output of the logical shift unit testbench](logical_shift_unit.png)
+![GTKWave output of the logical shift unit testbench](logical_shift_unit/logical_shift_unit.png)
 
 Circular shift unit:
 
-![GTKWave output of the circular shift unit testbench](circular_shift_unit.png)
-
-Arithmetic shift unit:
-
-![GTKWave output of the arithmetic shift unit testbench](arithmetic_shift_unit.png)
+![GTKWave output of the circular shift unit testbench](circular_shift_unit/circular_shift_unit.png)
