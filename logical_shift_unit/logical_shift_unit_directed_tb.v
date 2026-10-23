@@ -4,14 +4,20 @@
 // input and prints the results. Intended for viewing in GTKWave.
 module logical_shift_unit_directed_tb;
 
-    reg  [15:0] data_in;
-    reg  [3:0]  shamt;
-    reg         dir;
-    wire [15:0] data_out;
+    parameter  WIDTH   = 16;
+    localparam SHAMT_W = $clog2(WIDTH);
 
-    integer     i;
+    // 16'hB3C5 repeated to fill WIDTH bits
+    localparam [WIDTH-1:0] PATTERN = {((WIDTH + 15) / 16){16'hB3C5}};
 
-    logical_shift_unit dut (
+    reg  [WIDTH-1:0]   data_in;
+    reg  [SHAMT_W-1:0] shamt;
+    reg                dir;
+    wire [WIDTH-1:0]   data_out;
+
+    integer            i;
+
+    logical_shift_unit #(.WIDTH(WIDTH)) dut (
         .data_in (data_in),
         .shamt   (shamt),
         .dir     (dir),
@@ -22,10 +28,10 @@ module logical_shift_unit_directed_tb;
         $dumpfile("logical_shift_unit_directed_tb.vcd");
         $dumpvars(0, logical_shift_unit_directed_tb);
 
-        data_in = 16'hB3C5;
-        for (i = 0; i < 32; i = i + 1) begin
-            dir   = i[4];
-            shamt = i[3:0];
+        data_in = PATTERN;
+        for (i = 0; i < (2 << SHAMT_W); i = i + 1) begin
+            dir   = (i >> SHAMT_W) & 1;
+            shamt = i;
             #5;
             $display("data_in=%b dir=%s shamt=%2d -> data_out=%b",
                      data_in, dir ? "R" : "L", shamt, data_out);

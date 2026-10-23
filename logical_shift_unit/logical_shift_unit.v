@@ -1,25 +1,37 @@
-// 16-bit Logical Shift Unit (barrel shifter)
+// Parameterized Logical Shift Unit (barrel shifter)
 // dir = 0 : logical shift left  (zeros fill from LSB)
 // dir = 1 : logical shift right (zeros fill from MSB)
-// shamt   : shift amount, 0..15
-module logical_shift_unit (
-    input  wire [15:0] data_in,
-    input  wire [3:0]  shamt,
-    input  wire        dir,
-    output wire [15:0] data_out
+// shamt   : shift amount, 0..2**SHAMT_W-1
+// WIDTH   : data width, >= 2
+module logical_shift_unit #(
+    parameter WIDTH   = 16,
+    parameter SHAMT_W = $clog2(WIDTH)
+) (
+    input  wire [WIDTH-1:0]   data_in,
+    input  wire [SHAMT_W-1:0] shamt,
+    input  wire               dir,
+    output wire [WIDTH-1:0]   data_out
 );
 
-    wire [15:0] s0, s1, s2, s3;
+    // chain[k*WIDTH +: WIDTH] is the input to stage k
+    wire [WIDTH*(SHAMT_W+1)-1:0] chain;
+    assign chain[WIDTH-1:0] = data_in;
 
-    // Stage 0: shift by 1
-    assign s0 = shamt[0] ? (dir ? {1'b0,  data_in[15:1]} : {data_in[14:0], 1'b0})  : data_in;
-    // Stage 1: shift by 2
-    assign s1 = shamt[1] ? (dir ? {2'b0,  s0[15:2]}      : {s0[13:0], 2'b0})       : s0;
-    // Stage 2: shift by 4
-    assign s2 = shamt[2] ? (dir ? {4'b0,  s1[15:4]}      : {s1[11:0], 4'b0})       : s1;
-    // Stage 3: shift by 8
-    assign s3 = shamt[3] ? (dir ? {8'b0,  s2[15:8]}      : {s2[7:0],  8'b0})       : s2;
+    genvar k;
+    generate
+        for (k = 0; k < SHAMT_W; k = k + 1) begin : stage
+            localparam N = 1 << k;  // stage k shifts by 2**k
 
-    assign data_out = s3;
+            wire [WIDTH-1:0] in = chain[k*WIDTH +: WIDTH];
+            wire [WIDTH-1:0] out;
+
+            assign out = shamt[k] ? (dir ? {{N{1'b0}}, in[WIDTH-1:N]}
+                                         : {in[WIDTH-N-1:0], {N{1'b0}}}) : in;
+
+            assign chain[(k+1)*WIDTH +: WIDTH] = out;
+        end
+    endgenerate
+
+    assign data_out = chain[SHAMT_W*WIDTH +: WIDTH];
 
 endmodule

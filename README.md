@@ -1,6 +1,6 @@
 # Shift Unit
 
-Verilog shift units for a 16-bit datapath.
+Parameterized Verilog shift units. The data width is set by a `WIDTH` parameter, which defaults to 16.
 
 | Module | Folder | Status |
 |---|---|---|
@@ -37,39 +37,63 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 └── README.md
 ```
 
-The three single-purpose units have the same ports and the same 4-stage barrel structure. The only difference is what fills the empty bit positions:
+## Parameters
+
+Every module takes the same two parameters:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `WIDTH` | `16` | Data width in bits. Must be at least 2. |
+| `SHAMT_W` | `$clog2(WIDTH)` | Width of `shamt`, and the number of shifter stages. Normally left at its default. |
+
+For example, a 32-bit logical shift unit has a 5-bit `shamt`:
+
+```verilog
+logical_shift_unit #(.WIDTH(32)) u_shift (
+    .data_in (a),
+    .shamt   (amount),   // [4:0]
+    .dir     (dir),
+    .data_out(y)
+);
+```
+
+`WIDTH` does not have to be a power of 2. If it isn't, `shamt` can hold values of `WIDTH` or more. In that case the logical unit returns 0, the arithmetic unit fills every bit with the sign bit, and rotations wrap around, rotating by `shamt` mod `WIDTH`.
+
+The three single-purpose units have the same ports and the same barrel structure. The only difference is what fills the empty bit positions:
 
 | Unit | Left shift fills with | Right shift fills with |
 |---|---|---|
 | Logical | `0` | `0` |
 | Circular | bits from the MSB end | bits from the LSB end |
-| Arithmetic | `0` | the sign bit `data_in[15]` |
+| Arithmetic | `0` | the sign bit `data_in[WIDTH-1]` |
+
+The examples in the sections below use the default `WIDTH = 16`, so `shamt` is 4 bits wide.
 
 ## Logical shift unit
 
-`logical_shift_unit` shifts a 16-bit value left or right by 0–15 positions. Bits that move out are dropped, and the empty positions are filled with `0`.
+`logical_shift_unit` shifts a `WIDTH`-bit value left or right. Bits that move out are dropped, and the empty positions are filled with `0`.
 
 ### Ports
 
 | Port | Direction | Width | Description |
 |---|---|---|---|
-| `data_in` | input | 16 | Value to shift |
-| `shamt` | input | 4 | Shift amount (0–15) |
+| `data_in` | input | `WIDTH` | Value to shift |
+| `shamt` | input | `SHAMT_W` | Shift amount (0 to 2^`SHAMT_W` − 1) |
 | `dir` | input | 1 | `0` = shift left, `1` = shift right |
-| `data_out` | output | 16 | Shifted result |
+| `data_out` | output | `WIDTH` | Shifted result |
 
 ### Design
 
-The unit is a combinational barrel shifter with four stages. Each stage is controlled by one bit of `shamt` and either passes its input through or shifts it by a fixed amount:
+The unit is a combinational barrel shifter with `SHAMT_W` stages, built by a `generate` loop. Stage `k` is controlled by `shamt[k]` and either passes its input through or shifts it by 2^k. With the default `WIDTH = 16` there are four stages:
 
 | Stage | Signal | Controlled by | Shift |
 |---|---|---|---|
-| 0 | `s0` | `shamt[0]` | 1 |
-| 1 | `s1` | `shamt[1]` | 2 |
-| 2 | `s2` | `shamt[2]` | 4 |
-| 3 | `s3` | `shamt[3]` | 8 |
+| 0 | `stage[0].out` | `shamt[0]` | 1 |
+| 1 | `stage[1].out` | `shamt[1]` | 2 |
+| 2 | `stage[2].out` | `shamt[2]` | 4 |
+| 3 | `stage[3].out` | `shamt[3]` | 8 |
 
-Any shift amount from 0 to 15 is a combination of these stages, so every shift takes the same four multiplexer levels. `data_out` is `s3`.
+Any shift amount is a combination of these stages, so every shift goes through the same `SHAMT_W` multiplexer levels. `data_out` is the output of the last stage. Each stage's `in` and `out` wires appear in GTKWave under `dut.stage[k]`.
 
 ### Example
 
@@ -82,20 +106,20 @@ With `data_in = 16'hB3C5` (`1011001111000101`):
 
 ## Circular shift unit
 
-`circular_shift_unit` rotates a 16-bit value left or right by 0–15 positions. No bits are lost: bits that move out of one end come back in at the other end.
+`circular_shift_unit` rotates a `WIDTH`-bit value left or right. No bits are lost: bits that move out of one end come back in at the other end.
 
 ### Ports
 
 | Port | Direction | Width | Description |
 |---|---|---|---|
-| `data_in` | input | 16 | Value to rotate |
-| `shamt` | input | 4 | Rotate amount (0–15) |
+| `data_in` | input | `WIDTH` | Value to rotate |
+| `shamt` | input | `SHAMT_W` | Rotate amount (0 to 2^`SHAMT_W` − 1) |
 | `dir` | input | 1 | `0` = rotate left, `1` = rotate right |
-| `data_out` | output | 16 | Rotated result |
+| `data_out` | output | `WIDTH` | Rotated result |
 
 ### Design
 
-It uses the same four stages as the logical unit (`s0`–`s3`, rotating by 1, 2, 4 and 8 under control of `shamt[0]`–`shamt[3]`). Each stage wraps the bits it moves out around to the other end instead of filling with zeros. Rotating by 8 left and by 8 right give the same result, so stage 3 is identical in both directions.
+It uses the same stages as the logical unit (stage `k` rotates by 2^k when `shamt[k]` is set). Each stage wraps the bits it moves out around to the other end instead of filling with zeros.
 
 ### Example
 
@@ -108,20 +132,20 @@ With `data_in = 16'hB3C5` (`1011001111000101`):
 
 ## Arithmetic shift unit
 
-`arithmetic_shift_unit` shifts a 16-bit two's-complement value left or right by 0–15 positions. A right shift copies the sign bit into the empty positions, so the value keeps its sign and the result equals division by 2ⁿ rounded toward negative infinity. A left shift fills with zeros and is the same as a logical left shift (multiplication by 2ⁿ, without overflow detection).
+`arithmetic_shift_unit` shifts a `WIDTH`-bit two's-complement value left or right. A right shift copies the sign bit into the empty positions, so the value keeps its sign and the result equals division by 2ⁿ rounded toward negative infinity. A left shift fills with zeros and is the same as a logical left shift (multiplication by 2ⁿ, without overflow detection).
 
 ### Ports
 
 | Port | Direction | Width | Description |
 |---|---|---|---|
-| `data_in` | input | 16 | Signed value to shift |
-| `shamt` | input | 4 | Shift amount (0–15) |
+| `data_in` | input | `WIDTH` | Signed value to shift |
+| `shamt` | input | `SHAMT_W` | Shift amount (0 to 2^`SHAMT_W` − 1) |
 | `dir` | input | 1 | `0` = shift left, `1` = shift right |
-| `data_out` | output | 16 | Shifted result |
+| `data_out` | output | `WIDTH` | Shifted result |
 
 ### Design
 
-It uses the same four stages (`s0`–`s3`, shifting by 1, 2, 4 and 8 under control of `shamt[0]`–`shamt[3]`). In right shifts, each stage fills the top bits with copies of `data_in[15]`, the original sign bit.
+It uses the same stages (stage `k` shifts by 2^k when `shamt[k]` is set). In right shifts, each stage fills the top bits with copies of `data_in[WIDTH-1]`, the original sign bit.
 
 ### Example
 
@@ -140,25 +164,25 @@ Right shifts by 4 of a negative and a positive value:
 
 | Port | Direction | Width | Description |
 |---|---|---|---|
-| `data_in` | input | 16 | Value to shift |
-| `shamt` | input | 4 | Shift amount (0–15) |
+| `data_in` | input | `WIDTH` | Value to shift |
+| `shamt` | input | `SHAMT_W` | Shift amount (0 to 2^`SHAMT_W` − 1) |
 | `dir` | input | 1 | `0` = left, `1` = right |
 | `mode` | input | 2 | Operation, see below |
-| `data_out` | output | 16 | Shifted result |
+| `data_out` | output | `WIDTH` | Shifted result |
 
 | `mode` | Operation | Left fills with | Right fills with |
 |---|---|---|---|
 | `2'b00` | Logical | `0` | `0` |
-| `2'b01` | Arithmetic | `0` | the sign bit `data_in[15]` |
+| `2'b01` | Arithmetic | `0` | the sign bit `data_in[WIDTH-1]` |
 | `2'b10` | Rotate | bits from the MSB end | bits from the LSB end |
 | `2'b11` | Rotate (same as `2'b10`) | bits from the MSB end | bits from the LSB end |
 
 ### Design
 
-It uses the same four stages (`s0`–`s3`, shifting by 1, 2, 4 and 8 under control of `shamt[0]`–`shamt[3]`). Each stage chooses its fill bits from `mode`:
+It uses the same stages (stage `k` shifts by 2^k when `shamt[k]` is set). Each stage chooses its fill bits from `mode`:
 
 - `mode[1] = 1`: the bits shifted out wrap around to the other end (rotate).
-- Otherwise, on a right shift, the fill is `data_in[15] & mode[0]`: copies of the sign bit for arithmetic, zeros for logical.
+- Otherwise, on a right shift, the fill is `data_in[WIDTH-1] & mode[0]`: copies of the sign bit for arithmetic, zeros for logical.
 - Otherwise, on a left shift, the fill is zeros.
 
 ### Example
@@ -182,8 +206,8 @@ Each unit has two testbenches:
 
 | Testbench | Purpose |
 |---|---|
-| `<module>_directed_tb.v` | Sweeps every shift amount (0–15) in both directions on a fixed input and prints each result. Use it to read the behavior and to view a clean waveform in GTKWave. |
-| `<module>_random_tb.v` | Applies `NUM_TESTS` (default 1000) random inputs and checks each `data_out` against a behavioral model, printing any mismatch and then `ALL 1000 TESTS PASSED` or the failure count. |
+| `<module>_directed_tb.v` | Sweeps every value of `shamt` in both directions on a fixed input and prints each result. Use it to read the behavior and to view a clean waveform in GTKWave. |
+| `<module>_random_tb.v` | Applies `NUM_TESTS` (default 1000) random inputs and checks each `data_out` against a behavioral model, printing any mismatch and then `ALL 1000 TESTS PASSED (WIDTH=16)` or the failure count. |
 
 The directed testbenches use the input `16'hB3C5`. The arithmetic one also uses the positive value `16'h33C5`, so you can see the sign bit fill with both `1` and `0`. The barrel shifter's directed testbench runs the sweep once for each mode: logical, arithmetic, then rotate.
 
@@ -197,7 +221,9 @@ The random testbenches use these reference models:
 
 The barrel shifter's random testbench also randomizes `mode`, including `2'b11`, and checks each result against the model for that mode.
 
-Every testbench writes a `.vcd` file named after itself, which includes the internal stage signals `s0`–`s3`.
+Every testbench writes a `.vcd` file named after itself, which includes each stage's `in` and `out` signals.
+
+Each testbench has a `WIDTH` parameter, default 16, which it passes on to the module under test. The random testbenches also have `NUM_TESTS`, default 1000. At widths other than 16, the directed testbenches repeat the `16'hB3C5` pattern to fill the width. The arithmetic testbench then forces the MSB to 1 for its negative input and to 0 for its positive one. The barrel shifter testbench forces it to 1, so its input is always negative.
 
 To run a testbench, go into the module's folder. In the commands below, replace `<module>` with the folder name: `logical_shift_unit`, `circular_shift_unit`, `arithmetic_shift_unit` or `barrel_shifter`.
 
@@ -219,6 +245,16 @@ Random self-checking test:
 iverilog -o <module>_random.vvp <module>.v <module>_random_tb.v
 vvp <module>_random.vvp
 ```
+
+To test a different width, or to run a different number of random tests, override the testbench parameters with `-P` when compiling. For example, 1000 random tests of a 32-bit barrel shifter:
+
+```sh
+cd barrel_shifter
+iverilog -P barrel_shifter_random_tb.WIDTH=32 -o barrel_shifter_random.vvp barrel_shifter.v barrel_shifter_random_tb.v
+vvp barrel_shifter_random.vvp
+```
+
+The same `-P <testbench>.WIDTH=<n>` option works for the directed testbenches, and `-P <testbench>.NUM_TESTS=<n>` sets the number of random tests. All four modules pass their random testbenches at widths 2, 4, 8, 12, 16, 32, 64 and 100.
 
 The `.vvp` and `.vcd` files are written into the module's folder. They are build outputs and are ignored by git.
 
