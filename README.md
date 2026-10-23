@@ -34,6 +34,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── barrel_shifter_directed_tb.v
 │   └── barrel_shifter_random_tb.v
 ├── .gitignore
+├── LICENSE
 └── README.md
 ```
 
@@ -267,3 +268,7 @@ Logical shift unit:
 Circular shift unit:
 
 ![GTKWave output of the circular shift unit testbench](circular_shift_unit/circular_shift_unit.png)
+
+## License
+
+This project is released under the [MIT License](LICENSE).
