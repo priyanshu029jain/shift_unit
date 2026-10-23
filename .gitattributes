@@ -1,0 +1,3 @@
+# Keep shell scripts LF-only and batch files CRLF so each runs on its platform
+*.sh text eol=lf
+*.bat text eol=crlf

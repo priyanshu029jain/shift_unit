@@ -33,6 +33,9 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── barrel_shifter.v
 │   ├── barrel_shifter_directed_tb.v
 │   └── barrel_shifter_random_tb.v
+├── simulate.sh                            run a directed testbench and open GTKWave
+├── simulate.bat                           same, for Windows PowerShell / cmd
+├── .gitattributes
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -202,6 +205,40 @@ With `data_in = 16'hB3C5` (`1011001111000101`) and `shamt = 4`:
 ## Simulation
 
 Requires [Icarus Verilog](https://steveicarus.github.io/iverilog/) and, for waveforms, [GTKWave](https://gtkwave.sourceforge.net/).
+
+### Quick start
+
+`simulate.sh` compiles a module's directed testbench, runs it, and opens the waveform in GTKWave. Run it from the repository root with the module's folder name, and optionally a width:
+
+```sh
+./simulate.sh barrel_shifter            # default WIDTH = 16
+./simulate.sh logical_shift_unit 8      # 8-bit version
+```
+
+To run it as just `simulate` from any folder on Linux, macOS or WSL, link it into a folder on your `PATH`:
+
+```sh
+mkdir -p ~/bin && ln -s "$PWD/simulate.sh" ~/bin/simulate   # run from the repo root
+simulate barrel_shifter
+```
+
+Run it with no arguments to list the available modules. To run the simulation without opening GTKWave, set `NO_WAVE=1`:
+
+```sh
+NO_WAVE=1 ./simulate.sh circular_shift_unit
+```
+
+On Windows, use `simulate.bat` from PowerShell or Command Prompt. It takes the same arguments. PowerShell only runs scripts from the current folder when they're prefixed with `.\`:
+
+```powershell
+.\simulate barrel_shifter
+.\simulate logical_shift_unit 8
+$env:NO_WAVE = "1"; .\simulate circular_shift_unit   # no GTKWave
+```
+
+If `iverilog` comes from [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build), `simulate.bat` runs the suite's `environment.bat` first, because its tools crash without that setup. Git Bash users can run `./simulate.sh` instead.
+
+The rest of this section shows how to run each step by hand, including the random self-checking testbenches.
 
 Each unit has two testbenches:
 
