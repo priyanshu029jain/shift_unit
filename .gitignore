@@ -21,3 +21,6 @@ desktop.ini
 vivado*.jou
 vivado*.log
 vivado_pid*.str
+clockInfo.txt
+dfx_runtime.txt
+tight_setup_hold_pins.txt

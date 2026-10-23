@@ -40,6 +40,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 ├── simulate.bat                           same, for Windows PowerShell / cmd
 ├── random.sh                              run a random testbench and print the pass rate
 ├── asic.sh                                synthesis + STA, prints area, timing and power
+├── fpga.sh                                Vivado run, prints utilization, timing and power
 ├── synthesis.tcl                          Yosys synthesis to sky130 + equivalence check
 ├── STA.tcl                                OpenSTA static timing analysis of the netlists
 ├── fpga.tcl                               Vivado FPGA implementation and reports
@@ -467,6 +468,35 @@ At `WIDTH = 16`, `PERIOD = 10` ns:
 | `barrel_shifter` | 2.359 | 423.9 | 0.401 | OK | `dir` → `data_out[1]` |
 
 All four meet timing at 10 ns with more than 7.6 ns of slack. The critical paths start at `dir` or `shamt`, the control inputs that fan out to every bit. A large share of each path is the input itself charging that fanout: in the barrel shifter, `dir` alone takes 0.50 ns. Another large share is the last gate driving the output load.
+
+## FPGA summary
+
+`fpga.sh` is the FPGA counterpart of `asic.sh`. It runs `fpga.tcl` (described below) through Vivado and prints just the key numbers for each module:
+
+```text
+$ ./fpga.sh barrel_shifter
+FPGA analysis: Vivado, part xc7a35tcpg236-1, WIDTH = 16, clock period = 10 ns (running...)
+
+barrel_shifter
+  Resources   78 LUTs (0.38% of device), 0 F7/F8 muxes  (+39 wrapper FFs)
+  Delay       5.333 ns reg-to-reg  (logic 1.375 ns, 4 levels),  Fmax 183.4 MHz
+  Timing      MET  (setup slack 4.547 ns, hold slack 0.257 ns)
+  Critical    dir_q_reg -> data_out_reg[2]
+  Power       1.330 mW dynamic,  69.734 mW total (incl. device static)
+```
+
+```sh
+./fpga.sh all                                # every module, in one Vivado run
+./fpga.sh barrel_shifter 32 5 xc7z020clg400-1  # WIDTH, clock period (ns), part
+```
+
+It finds Vivado in this order:
+
+1. The `VIVADO` environment variable, if set.
+2. `vivado` on the `PATH`, as on Linux or in Git Bash.
+3. Under WSL, the newest Windows install under `C:\AMDDesignTools` or `C:\Xilinx`, started through `cmd.exe`.
+
+A single module takes about 45 seconds, most of it Vivado starting up and routing. The script exits with status 1 if any module misses timing. The full reports are written to `<module>/fpga/`. Like the other scripts, it can be linked into `~/bin` as `fpga`.
 
 ## FPGA implementation
 

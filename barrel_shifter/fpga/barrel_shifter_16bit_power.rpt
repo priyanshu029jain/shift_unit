@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.2 (win64) Build 6299465 Fri Nov 14 19:35:11 GMT 2025
-| Date             : Sat Oct 24 00:56:38 2026
+| Date             : Sat Oct 24 02:22:45 2026
 | Host             : LAPTOP-GD27IJJR running 64-bit major release  (build 9200)
 | Command          : report_power -file C:/Users/LENOVO/Documents/GitHub/Architecture/Shift_unit/barrel_shifter/fpga/barrel_shifter_16bit_power.rpt -hierarchical_depth 2
 | Design           : fpga_wrapper
