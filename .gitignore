@@ -1,0 +1,17 @@
+# Icarus Verilog compiled simulations
+*.vvp
+a.out
+
+# Waveform dumps (regenerate by running the testbench)
+*.vcd
+*.fst
+*.lxt
+*.lxt2
+
+# Editor / OS files
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
