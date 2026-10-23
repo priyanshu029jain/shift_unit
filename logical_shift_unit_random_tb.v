@@ -1,6 +1,10 @@
 `timescale 1ns/1ps
 
-module logical_shift_unit_tb;
+// Random self-checking test: compares the DUT against Verilog's << and >>
+// on random inputs and reports any mismatch.
+module logical_shift_unit_random_tb;
+
+    localparam NUM_TESTS = 1000;
 
     reg  [15:0] data_in;
     reg  [3:0]  shamt;
@@ -18,23 +22,12 @@ module logical_shift_unit_tb;
     );
 
     initial begin
-        $dumpfile("logical_shift_unit_tb.vcd");
-        $dumpvars(0, logical_shift_unit_tb);
+        $dumpfile("logical_shift_unit_random_tb.vcd");
+        $dumpvars(0, logical_shift_unit_random_tb);
 
         errors = 0;
 
-        // A few readable examples
-        data_in = 16'hB3C5;
-        for (i = 0; i < 2; i = i + 1) begin
-            dir   = i[4];
-            shamt = i[3:0];
-            #5;
-            $display("data_in=%b dir=%s shamt=%2d -> data_out=%b",
-                     data_in, dir ? "R" : "L", shamt, data_out);
-        end
-
-        // Randomized self-check against behavioral shift
-        for (i = 0; i < 10; i = i + 1) begin
+        for (i = 0; i < NUM_TESTS; i = i + 1) begin
             data_in = $random;
             shamt   = $random;
             dir     = $random;
@@ -47,8 +40,8 @@ module logical_shift_unit_tb;
             end
         end
 
-        if (errors == 0) $display("ALL TESTS PASSED");
-        else             $display("%0d TESTS FAILED", errors);
+        if (errors == 0) $display("ALL %0d TESTS PASSED", NUM_TESTS);
+        else             $display("%0d OF %0d TESTS FAILED", errors, NUM_TESTS);
         $finish;
     end
 

@@ -107,36 +107,41 @@ Right shifts by 4 of a negative and a positive value:
 
 Requires [Icarus Verilog](https://steveicarus.github.io/iverilog/) and, for waveforms, [GTKWave](https://gtkwave.sourceforge.net/).
 
-Logical shift unit:
+Each unit has two testbenches:
+
+| Testbench | Purpose |
+|---|---|
+| `<unit>_shift_unit_directed_tb.v` | Sweeps every shift amount (0–15) in both directions on a fixed input and prints each result. Use it to read the behavior and to view a clean waveform in GTKWave. |
+| `<unit>_shift_unit_random_tb.v` | Applies `NUM_TESTS` (default 1000) random inputs and checks each `data_out` against a behavioral model, printing any mismatch and then `ALL 1000 TESTS PASSED` or the failure count. |
+
+The directed testbenches use the input `16'hB3C5`. The arithmetic one also uses the positive value `16'h33C5`, so you can see the sign bit fill with both `1` and `0`.
+
+The random testbenches use these reference models:
+
+| Unit | Left | Right |
+|---|---|---|
+| Logical | `x << n` | `x >> n` |
+| Circular | `(x << n) \| (x >> (16 - n))` | `(x >> n) \| (x << (16 - n))` |
+| Arithmetic | `x << n` | `$signed(x) >>> n` |
+
+Every testbench writes a `.vcd` file named after itself, which includes the internal stage signals `s0`–`s3`.
+
+To run a testbench, replace `<unit>` with `logical`, `circular` or `arithmetic`.
+
+Directed test:
 
 ```sh
-iverilog -o logical.vvp logical_shift_unit.v logical_shift_unit_tb.v
-vvp logical.vvp
-gtkwave logical_shift_unit_tb.vcd
+iverilog -o <unit>_directed.vvp <unit>_shift_unit.v <unit>_shift_unit_directed_tb.v
+vvp <unit>_directed.vvp
+gtkwave <unit>_shift_unit_directed_tb.vcd
 ```
 
-Circular shift unit:
+Random self-checking test:
 
 ```sh
-iverilog -o circular.vvp circular_shift_unit.v circular_shift_unit_tb.v
-vvp circular.vvp
-gtkwave circular_shift_unit_tb.vcd
+iverilog -o <unit>_random.vvp <unit>_shift_unit.v <unit>_shift_unit_random_tb.v
+vvp <unit>_random.vvp
 ```
-
-Arithmetic shift unit:
-
-```sh
-iverilog -o arithmetic.vvp arithmetic_shift_unit.v arithmetic_shift_unit_tb.v
-vvp arithmetic.vvp
-gtkwave arithmetic_shift_unit_tb.vcd
-```
-
-Each testbench (`logical_shift_unit_tb.v`, `circular_shift_unit_tb.v`, `arithmetic_shift_unit_tb.v`):
-
-1. Applies a few fixed shifts to `16'hB3C5` and prints the results. The arithmetic testbench also uses the positive value `16'h33C5`.
-2. Applies random inputs and compares `data_out` with a behavioral model built from Verilog's `<<` and `>>` operators, reporting any mismatch. For the circular unit the model is `(x << n) | (x >> (16 - n))` for left and the mirror for right. For the arithmetic unit the right-shift model is `$signed(x) >>> n`.
-3. Prints `ALL TESTS PASSED` or the number of failures.
-4. Writes a `.vcd` waveform that includes the internal stage signals `s0`–`s3`.
 
 The `.vvp` and `.vcd` files are build outputs and are ignored by git.
 
