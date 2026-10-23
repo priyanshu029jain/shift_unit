@@ -36,11 +36,13 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── barrel_shifter.v
 │   ├── barrel_shifter_directed_tb.v
 │   └── barrel_shifter_random_tb.v
-├── simulate.sh                            run a directed testbench and open GTKWave
-├── simulate.bat                           same, for Windows PowerShell / cmd
-├── random.sh                              run a random testbench and print the pass rate
-├── asic.sh                                synthesis + STA, prints area, timing and power
-├── fpga.sh                                Vivado run, prints utilization, timing and power
+├── run                                    entry point: run <simulate|random|asic|fpga> ...
+├── scripts/
+│   ├── simulate.sh                        directed testbench, opens GTKWave
+│   ├── simulate.bat                       same, for Windows PowerShell / cmd
+│   ├── random.sh                          random testbench, prints the pass rate
+│   ├── asic.sh                            synthesis + STA, prints area, timing and power
+│   └── fpga.sh                            Vivado run, prints utilization, timing and power
 ├── synthesis.tcl                          Yosys synthesis to sky130 + equivalence check
 ├── STA.tcl                                OpenSTA static timing analysis of the netlists
 ├── fpga.tcl                               Vivado FPGA implementation and reports
@@ -49,6 +51,35 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 ├── LICENSE
 └── README.md
 ```
+
+## Quick start
+
+Everything is run through `run` in the repository root:
+
+```sh
+./run simulate barrel_shifter     # directed testbench, opens the waveform in GTKWave
+./run random   barrel_shifter     # random self-checking testbench: 1000/1000 passed (100.00%)
+./run asic     barrel_shifter     # sky130 synthesis + timing: area, delay, power
+./run fpga     barrel_shifter     # Vivado place and route: LUTs, Fmax, power
+```
+
+| Command | Arguments | Needs |
+|---|---|---|
+| `simulate` | `<module> [WIDTH]` | Icarus Verilog, GTKWave |
+| `random` | `<module> [WIDTH] [NUM_TESTS]` | Icarus Verilog |
+| `asic` | `<module\|all> [WIDTH] [PERIOD_ns]` | Yosys, OpenSTA, the sky130 liberty file |
+| `fpga` | `<module\|all> [WIDTH] [PERIOD_ns] [part]` | Vivado |
+
+`./run` on its own lists the commands. `./run <command>` with no arguments lists that command's options and the modules. Each command is a script in `scripts/`, which can also be run directly, for example `scripts/asic.sh all`. The sections below describe what each one does.
+
+To use `run` from any folder on Linux, macOS or WSL, link it into a folder on your `PATH`:
+
+```sh
+mkdir -p ~/bin && ln -s "$PWD/run" ~/bin/run     # from the repo root
+run asic all
+```
+
+`run` is a bash script. On Windows, use it from WSL or Git Bash; in PowerShell or Command Prompt, use `scripts\simulate.bat`, described under [Simulation](#simulation).
 
 ## Parameters
 
@@ -215,46 +246,39 @@ With `data_in = 16'hB3C5` (`1011001111000101`) and `shamt = 4`:
 
 Requires [Icarus Verilog](https://steveicarus.github.io/iverilog/) and, for waveforms, [GTKWave](https://gtkwave.sourceforge.net/).
 
-### Quick start
+### Running the testbenches
 
-`simulate.sh` compiles a module's directed testbench, runs it, and opens the waveform in GTKWave. Run it from the repository root with the module's folder name, and optionally a width:
-
-```sh
-./simulate.sh barrel_shifter            # default WIDTH = 16
-./simulate.sh logical_shift_unit 8      # 8-bit version
-```
-
-To run it as just `simulate` from any folder on Linux, macOS or WSL, link it into a folder on your `PATH`:
+`run simulate` compiles a module's directed testbench, runs it, and opens the waveform in GTKWave. It takes the module's folder name, and optionally a width:
 
 ```sh
-mkdir -p ~/bin && ln -s "$PWD/simulate.sh" ~/bin/simulate   # run from the repo root
-simulate barrel_shifter
+./run simulate barrel_shifter            # default WIDTH = 16
+./run simulate logical_shift_unit 8      # 8-bit version
 ```
 
-Run it with no arguments to list the available modules. To run the simulation without opening GTKWave, set `NO_WAVE=1`:
+To run the simulation without opening GTKWave, set `NO_WAVE=1`:
 
 ```sh
-NO_WAVE=1 ./simulate.sh circular_shift_unit
+NO_WAVE=1 ./run simulate circular_shift_unit
 ```
 
-On Windows, use `simulate.bat` from PowerShell or Command Prompt. It takes the same arguments. PowerShell only runs scripts from the current folder when they're prefixed with `.\`:
+On Windows, use `scripts\simulate.bat` from PowerShell or Command Prompt. It takes the same arguments:
 
 ```powershell
-.\simulate barrel_shifter
-.\simulate logical_shift_unit 8
-$env:NO_WAVE = "1"; .\simulate circular_shift_unit   # no GTKWave
+.\scripts\simulate barrel_shifter
+.\scripts\simulate logical_shift_unit 8
+$env:NO_WAVE = "1"; .\scripts\simulate circular_shift_unit   # no GTKWave
 ```
 
-If `iverilog` comes from [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build), `simulate.bat` runs the suite's `environment.bat` first, because its tools crash without that setup. Git Bash users can run `./simulate.sh` instead.
+If `iverilog` comes from [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build), `simulate.bat` runs the suite's `environment.bat` first, because its tools crash without that setup.
 
-`random.sh` compiles and runs a module's random self-checking testbench, and prints only the result. It takes the module, an optional width, and an optional number of tests:
+`run random` compiles and runs a module's random self-checking testbench, and prints only the result. It takes the module, an optional width, and an optional number of tests:
 
 ```sh
-./random.sh barrel_shifter               # 1000/1000 passed (100.00%)
-./random.sh logical_shift_unit 32 5000   # WIDTH = 32, 5000 tests
+./run random barrel_shifter               # 1000/1000 passed (100.00%)
+./run random logical_shift_unit 32 5000   # WIDTH = 32, 5000 tests
 ```
 
-It exits with status 0 when every test passes and 1 otherwise, so it can be used in scripts. It can be linked into `~/bin` the same way as `simulate.sh`, as `random`.
+It exits with status 0 when every test passes and 1 otherwise, so it can be used in scripts.
 
 The rest of this section shows how to run each step by hand, including the random self-checking testbenches.
 
@@ -326,10 +350,10 @@ Circular shift unit:
 
 ## ASIC summary
 
-`asic.sh` runs synthesis (`synthesis.tcl`) and then static timing analysis (`STA.tcl`, described below), and prints just the key numbers for each module:
+`run asic` (`scripts/asic.sh`) runs synthesis (`synthesis.tcl`) and then static timing analysis (`STA.tcl`, described below), and prints just the key numbers for each module:
 
 ```text
-$ ./asic.sh barrel_shifter
+$ ./run asic barrel_shifter
 ASIC analysis: sky130_fd_sc_hd (tt, 25 C, 1.8 V), WIDTH = 16, clock period = 10 ns
 
 barrel_shifter
@@ -342,11 +366,11 @@ barrel_shifter
 ```
 
 ```sh
-./asic.sh all                  # every module
-./asic.sh barrel_shifter 32 5  # WIDTH = 32, 5 ns clock period
+./run asic all                  # every module
+./run asic barrel_shifter 32 5  # WIDTH = 32, 5 ns clock period
 ```
 
-It needs `yosys` and `sta` on the `PATH`, as in WSL or Linux with OSS CAD Suite and OpenSTA installed. It exits with status 1 if any module fails the equivalence check, misses timing, or breaks the max-transition rule. The full netlists and reports are still written to `<module>/synth/` and `<module>/sta/`. Like the other scripts, it can be linked into `~/bin` as `asic`.
+It needs `yosys` and `sta` on the `PATH`, as in WSL or Linux with OSS CAD Suite and OpenSTA installed. It exits with status 1 if any module fails the equivalence check, misses timing, or breaks the max-transition rule. The full netlists and reports are still written to `<module>/synth/` and `<module>/sta/`.
 
 ## Synthesis
 
@@ -471,10 +495,10 @@ All four meet timing at 10 ns with more than 7.6 ns of slack. The critical paths
 
 ## FPGA summary
 
-`fpga.sh` is the FPGA counterpart of `asic.sh`. It runs `fpga.tcl` (described below) through Vivado and prints just the key numbers for each module:
+`run fpga` (`scripts/fpga.sh`) is the FPGA counterpart of `run asic`. It runs `fpga.tcl` (described below) through Vivado and prints just the key numbers for each module:
 
 ```text
-$ ./fpga.sh barrel_shifter
+$ ./run fpga barrel_shifter
 FPGA analysis: Vivado, part xc7a35tcpg236-1, WIDTH = 16, clock period = 10 ns (running...)
 
 barrel_shifter
@@ -486,8 +510,8 @@ barrel_shifter
 ```
 
 ```sh
-./fpga.sh all                                # every module, in one Vivado run
-./fpga.sh barrel_shifter 32 5 xc7z020clg400-1  # WIDTH, clock period (ns), part
+./run fpga all                                # every module, in one Vivado run
+./run fpga barrel_shifter 32 5 xc7z020clg400-1  # WIDTH, clock period (ns), part
 ```
 
 It finds Vivado in this order:
@@ -496,7 +520,7 @@ It finds Vivado in this order:
 2. `vivado` on the `PATH`, as on Linux or in Git Bash.
 3. Under WSL, the newest Windows install under `C:\AMDDesignTools` or `C:\Xilinx`, started through `cmd.exe`.
 
-A single module takes about 45 seconds, most of it Vivado starting up and routing. The script exits with status 1 if any module misses timing. The full reports are written to `<module>/fpga/`. Like the other scripts, it can be linked into `~/bin` as `fpga`.
+A single module takes about 45 seconds, most of it Vivado starting up and routing. The script exits with status 1 if any module misses timing. The full reports are written to `<module>/fpga/`.
 
 ## FPGA implementation
 

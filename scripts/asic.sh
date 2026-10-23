@@ -3,14 +3,14 @@
 # equivalence check) followed by OpenSTA (timing, power). Prints only the key
 # numbers; the full reports are in <module>/synth/ and <module>/sta/.
 #
-# Usage: ./asic.sh <module|all> [WIDTH] [PERIOD_ns]
-#   ./asic.sh barrel_shifter
-#   ./asic.sh all 32 5
+# Usage: ./run asic <module|all> [WIDTH] [PERIOD_ns]
+#   ./run asic barrel_shifter
+#   ./run asic all 32 5
 
 set -euo pipefail
 
 # Follow symlinks so the script also works when linked into a PATH folder,
-# e.g. ln -s "$PWD/asic.sh" ~/bin/asic
+# e.g. ln -s "$PWD/scripts/asic.sh" ~/bin/asic
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
     LINK="$(readlink "$SELF")"
@@ -19,12 +19,12 @@ while [ -L "$SELF" ]; do
         *)  SELF="$(dirname "$SELF")/$LINK" ;;
     esac
 done
-ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"   # scripts/ lives in the repo root
 
 MODULES=(logical_shift_unit circular_shift_unit arithmetic_shift_unit barrel_shifter)
 
 usage() {
-    echo "Usage: $0 <module|all> [WIDTH] [PERIOD_ns]" >&2
+    echo "Usage: ${RUN_CMD:-$0} <module|all> [WIDTH] [PERIOD_ns]" >&2
     echo >&2
     echo "Modules:" >&2
     printf '  %s\n' "${MODULES[@]}" >&2

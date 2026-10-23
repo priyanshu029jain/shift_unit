@@ -3,9 +3,9 @@
 # then the key utilization, timing and power numbers. The full reports are in
 # <module>/fpga/.
 #
-# Usage: ./fpga.sh <module|all> [WIDTH] [PERIOD_ns] [part]
-#   ./fpga.sh barrel_shifter
-#   ./fpga.sh all 32 5 xc7z020clg400-1
+# Usage: ./run fpga <module|all> [WIDTH] [PERIOD_ns] [part]
+#   ./run fpga barrel_shifter
+#   ./run fpga all 32 5 xc7z020clg400-1
 #
 # Vivado is found in this order:
 #   1. $VIVADO, if set (path to vivado or vivado.bat)
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 # Follow symlinks so the script also works when linked into a PATH folder,
-# e.g. ln -s "$PWD/fpga.sh" ~/bin/fpga
+# e.g. ln -s "$PWD/scripts/fpga.sh" ~/bin/fpga
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
     LINK="$(readlink "$SELF")"
@@ -24,12 +24,12 @@ while [ -L "$SELF" ]; do
         *)  SELF="$(dirname "$SELF")/$LINK" ;;
     esac
 done
-ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"   # scripts/ lives in the repo root
 
 MODULES=(logical_shift_unit circular_shift_unit arithmetic_shift_unit barrel_shifter)
 
 usage() {
-    echo "Usage: $0 <module|all> [WIDTH] [PERIOD_ns] [part]" >&2
+    echo "Usage: ${RUN_CMD:-$0} <module|all> [WIDTH] [PERIOD_ns] [part]" >&2
     echo >&2
     echo "Modules:" >&2
     printf '  %s\n' "${MODULES[@]}" >&2

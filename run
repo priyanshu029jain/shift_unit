@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Single entry point for the project's scripts in scripts/.
+#
+# Usage: ./run <command> [arguments...]
+#   ./run simulate barrel_shifter        directed testbench + GTKWave
+#   ./run random   barrel_shifter        random testbench, pass rate only
+#   ./run asic     barrel_shifter        sky130 synthesis + STA summary
+#   ./run fpga     barrel_shifter        Vivado implementation summary
+#
+# Run "./run <command>" with no arguments to see that command's options.
+
+set -euo pipefail
+
+# Follow symlinks so this also works when linked into a PATH folder,
+# e.g. ln -s "$PWD/run" ~/bin/run
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+    LINK="$(readlink "$SELF")"
+    case "$LINK" in
+        /*) SELF="$LINK" ;;
+        *)  SELF="$(dirname "$SELF")/$LINK" ;;
+    esac
+done
+ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+
+usage() {
+    cat >&2 <<EOF
+Usage: run <command> [arguments...]
+
+Commands:
+  simulate <module> [WIDTH]                          directed testbench, opens GTKWave
+  random   <module> [WIDTH] [NUM_TESTS]              random testbench, prints pass rate
+  asic     <module|all> [WIDTH] [PERIOD_ns]          sky130 synthesis + STA: area, timing, power
+  fpga     <module|all> [WIDTH] [PERIOD_ns] [part]   Vivado: utilization, timing, power
+
+Modules: logical_shift_unit, circular_shift_unit, arithmetic_shift_unit, barrel_shifter
+EOF
+    exit 1
+}
+
+[ $# -ge 1 ] || usage
+
+CMD="$1"
+shift
+
+case "$CMD" in
+    simulate|random|asic|fpga) ;;
+    -h|--help|help) usage ;;
+    *) echo "Error: unknown command '$CMD'" >&2; echo >&2; usage ;;
+esac
+
+# Lets the scripts print "run <command>" in their own usage messages
+export RUN_CMD="run $CMD"
+exec "$ROOT/scripts/$CMD.sh" "$@"

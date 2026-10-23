@@ -2,14 +2,14 @@
 # Compile and run a module's random self-checking testbench and print only
 # the result: passed/total and the pass percentage.
 #
-# Usage: ./random.sh <module> [WIDTH] [NUM_TESTS]
-#   ./random.sh barrel_shifter
-#   ./random.sh logical_shift_unit 32 5000
+# Usage: ./run random <module> [WIDTH] [NUM_TESTS]
+#   ./run random barrel_shifter
+#   ./run random logical_shift_unit 32 5000
 
 set -euo pipefail
 
 # Follow symlinks so the script also works when linked into a PATH folder,
-# e.g. ln -s "$PWD/random.sh" ~/bin/random
+# e.g. ln -s "$PWD/scripts/random.sh" ~/bin/random
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
     LINK="$(readlink "$SELF")"
@@ -18,10 +18,10 @@ while [ -L "$SELF" ]; do
         *)  SELF="$(dirname "$SELF")/$LINK" ;;
     esac
 done
-ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"   # scripts/ lives in the repo root
 
 usage() {
-    echo "Usage: $0 <module> [WIDTH] [NUM_TESTS]" >&2
+    echo "Usage: ${RUN_CMD:-$0} <module> [WIDTH] [NUM_TESTS]" >&2
     echo >&2
     echo "Modules:" >&2
     for d in "$ROOT"/*/; do

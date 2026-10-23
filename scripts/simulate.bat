@@ -5,13 +5,14 @@ rem
 rem Usage: simulate <module> [WIDTH]
 rem   simulate barrel_shifter
 rem   simulate logical_shift_unit 8
-rem (from PowerShell: .\simulate barrel_shifter)
+rem (from PowerShell, in the repo root: .\scripts\simulate barrel_shifter)
 rem
 rem Set NO_WAVE=1 to run the simulation without opening GTKWave.
 
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "ROOT=%~dp0"
+rem The repo root is one level above scripts\
+set "ROOT=%~dp0..\"
 if "%~1"=="" goto usage
 if not "%~3"=="" goto usage
 

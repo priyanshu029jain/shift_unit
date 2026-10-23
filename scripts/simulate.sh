@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Compile and run a module's directed testbench, then open the waveform in GTKWave.
 #
-# Usage: ./simulate.sh <module> [WIDTH]
-#   ./simulate.sh barrel_shifter
-#   ./simulate.sh logical_shift_unit 8
+# Usage: ./run simulate <module> [WIDTH]
+#   ./run simulate barrel_shifter
+#   ./run simulate logical_shift_unit 8
 #
 # Set NO_WAVE=1 to run the simulation without opening GTKWave.
 
 set -euo pipefail
 
 # Follow symlinks so the script also works when linked into a PATH folder,
-# e.g. ln -s "$PWD/simulate.sh" ~/bin/simulate
+# e.g. ln -s "$PWD/scripts/simulate.sh" ~/bin/simulate
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
     LINK="$(readlink "$SELF")"
@@ -19,10 +19,10 @@ while [ -L "$SELF" ]; do
         *)  SELF="$(dirname "$SELF")/$LINK" ;;
     esac
 done
-ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"   # scripts/ lives in the repo root
 
 usage() {
-    echo "Usage: $0 <module> [WIDTH]"
+    echo "Usage: ${RUN_CMD:-$0} <module> [WIDTH]"
     echo
     echo "Modules:"
     for d in "$ROOT"/*/; do
