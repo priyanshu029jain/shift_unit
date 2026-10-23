@@ -5,7 +5,9 @@ Verilog shift units for a 16-bit datapath.
 | Module | File | Status |
 |---|---|---|
 | Logical shift unit | `logical_shift_unit.v` | Done, with testbench |
-| Circular (rotate) shift unit | `circular_shift_unit.v` | Planned |
+| Circular (rotate) shift unit | `circular_shift_unit.v` | Done, with testbench |
+
+Both units have the same ports and the same 4-stage barrel structure. The only difference is what fills the empty bit positions: zeros for the logical unit, the bits that fell off the other end for the circular unit.
 
 ## Logical shift unit
 
@@ -42,9 +44,37 @@ With `data_in = 16'hB3C5` (`1011001111000101`):
 | 0 (left) | 1 | `0110011110001010` (`16'h678A`) |
 | 1 (right) | 12 | `0000000000001011` (`16'h000B`) |
 
+## Circular shift unit
+
+`circular_shift_unit` rotates a 16-bit value left or right by 0–15 positions. No bits are lost: bits that move out of one end come back in at the other end.
+
+### Ports
+
+| Port | Direction | Width | Description |
+|---|---|---|---|
+| `data_in` | input | 16 | Value to rotate |
+| `shamt` | input | 4 | Rotate amount (0–15) |
+| `dir` | input | 1 | `0` = rotate left, `1` = rotate right |
+| `data_out` | output | 16 | Rotated result |
+
+### Design
+
+It uses the same four stages as the logical unit (`s0`–`s3`, rotating by 1, 2, 4 and 8 under control of `shamt[0]`–`shamt[3]`). Each stage wraps the bits it moves out around to the other end instead of filling with zeros. Rotating by 8 left and by 8 right give the same result, so stage 3 is identical in both directions.
+
+### Example
+
+With `data_in = 16'hB3C5` (`1011001111000101`):
+
+| `dir` | `shamt` | `data_out` |
+|---|---|---|
+| 0 (left) | 1 | `0110011110001011` (`16'h678B`) |
+| 1 (right) | 4 | `0101101100111100` (`16'h5B3C`) |
+
 ## Simulation
 
 Requires [Icarus Verilog](https://steveicarus.github.io/iverilog/) and, for waveforms, [GTKWave](https://gtkwave.sourceforge.net/).
+
+Logical shift unit:
 
 ```sh
 iverilog -o logical.vvp logical_shift_unit.v logical_shift_unit_tb.v
@@ -52,15 +82,29 @@ vvp logical.vvp
 gtkwave logical_shift_unit_tb.vcd
 ```
 
-The testbench `logical_shift_unit_tb.v`:
+Circular shift unit:
+
+```sh
+iverilog -o circular.vvp circular_shift_unit.v circular_shift_unit_tb.v
+vvp circular.vvp
+gtkwave circular_shift_unit_tb.vcd
+```
+
+Each testbench (`logical_shift_unit_tb.v`, `circular_shift_unit_tb.v`):
 
 1. Applies a few fixed shifts to `16'hB3C5` and prints the results.
-2. Applies random inputs and compares `data_out` with Verilog's `<<` and `>>` operators, reporting any mismatch.
+2. Applies random inputs and compares `data_out` with a behavioral model built from Verilog's `<<` and `>>` operators, reporting any mismatch. For the circular unit the model is `(x << n) | (x >> (16 - n))` for left and the mirror for right.
 3. Prints `ALL TESTS PASSED` or the number of failures.
-4. Writes `logical_shift_unit_tb.vcd`, which includes the internal stage signals `s0`–`s3`.
+4. Writes a `.vcd` waveform that includes the internal stage signals `s0`–`s3`.
 
 The `.vvp` and `.vcd` files are build outputs and are ignored by git.
 
-### Waveform
+### Waveforms
+
+Logical shift unit:
 
 ![GTKWave output of the logical shift unit testbench](logical_shift_unit.png)
+
+Circular shift unit:
+
+![GTKWave output of the circular shift unit testbench](circular_shift_unit.png)
