@@ -19,7 +19,8 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── logical_shift_unit.v               design
 │   ├── logical_shift_unit_directed_tb.v   directed testbench
 │   ├── logical_shift_unit_random_tb.v     random self-checking testbench
-│   └── logical_shift_unit.png             waveform screenshot
+│   ├── logical_shift_unit.png             waveform screenshot
+│   └── synth/                             sky130 netlist and area report
 ├── circular_shift_unit/
 │   ├── circular_shift_unit.v
 │   ├── circular_shift_unit_directed_tb.v
@@ -36,6 +37,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 ├── simulate.sh                            run a directed testbench and open GTKWave
 ├── simulate.bat                           same, for Windows PowerShell / cmd
 ├── random.sh                              run a random testbench and print the pass rate
+├── synthesis.tcl                          Yosys synthesis to sky130 + equivalence check
 ├── .gitattributes
 ├── .gitignore
 ├── LICENSE
@@ -315,6 +317,68 @@ Logical shift unit:
 Circular shift unit:
 
 ![GTKWave output of the circular shift unit testbench](circular_shift_unit/circular_shift_unit.png)
+
+## Synthesis
+
+`synthesis.tcl` synthesizes the modules with [Yosys](https://github.com/YosysHQ/yosys) to the SkyWater 130 nm high-density standard-cell library (`sky130_fd_sc_hd`, typical corner: 25 °C, 1.8 V). It then formally proves that each gate-level netlist is equivalent to its RTL.
+
+```sh
+yosys -q -c synthesis.tcl                          # all modules, WIDTH = 16
+yosys -q -c synthesis.tcl -- barrel_shifter        # one module
+yosys -q -c synthesis.tcl -- barrel_shifter 32     # one module, WIDTH = 32
+yosys -q -c synthesis.tcl -- all 8                 # all modules, WIDTH = 8
+```
+
+Arguments for the script go after `--`. The `-q` flag hides Yosys's detailed log, leaving only the summary and any errors.
+
+### Liberty file
+
+By default the script uses `../../pdks/sky130/sky130.lib`, relative to the script. That is, it expects a `pdks` repository next to the `Architecture` folder:
+
+```text
+GitHub/
+├── Architecture/Shift_unit/synthesis.tcl
+└── pdks/sky130/sky130.lib
+```
+
+To use a library somewhere else, set `SKY130_LIB`:
+
+```sh
+SKY130_LIB=/path/to/sky130_fd_sc_hd__tt_025C_1v80.lib yosys -q -c synthesis.tcl
+```
+
+### Flow
+
+For each module the script:
+
+1. Reads the RTL and sets `WIDTH` (`hierarchy -chparam`).
+2. Runs generic synthesis and flattens the design (`synth -flatten`).
+3. Maps to sky130 cells (`dfflibmap`, `abc -liberty`). The designs are purely combinational, so `dfflibmap` has nothing to map. It is kept so the flow also works for sequential logic.
+4. Ties any constant outputs to `sky130_fd_sc_hd__conb_1` cells (`hilomap`), removes unused logic, and checks the netlist for problems (`check -assert`).
+5. Writes the netlist and a cell/area report to `<module>/synth/`.
+6. Builds a miter of the RTL and the netlist, using cell logic taken from the liberty file's `function` attributes. It then proves with a SAT solver that the two produce the same output for every possible input (`miter -equiv`, `sat -prove-asserts`).
+
+Outputs per module, in `<module>/synth/`:
+
+| File | Contents |
+|---|---|
+| `<module>_<WIDTH>bit_netlist.v` | Gate-level Verilog netlist of sky130 cells |
+| `<module>_<WIDTH>bit_stat.rpt` | Cell counts by type and total area |
+
+The script exits with status 1 if any netlist fails the equivalence check.
+
+### Results
+
+At the default `WIDTH = 16`:
+
+| Module | Cells | Area (µm²) | Equivalence |
+|---|---|---|---|
+| `logical_shift_unit` | 134 | 967.18 | Pass |
+| `circular_shift_unit` | 128 | 1581.52 | Pass |
+| `arithmetic_shift_unit` | 155 | 1047.25 | Pass |
+| `barrel_shifter` | 187 | 1291.24 | Pass |
+
+Area is the sum of the cell areas from the liberty file. It does not include routing or placement overhead.
 
 ## License
 

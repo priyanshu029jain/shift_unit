@@ -1,0 +1,25 @@
+
+31. Printing statistics.
+
+=== circular_shift_unit ===
+
+   Number of wires:                116
+   Number of wire bits:            149
+   Number of public wires:           4
+   Number of public wire bits:      37
+   Number of ports:                  4
+   Number of port bits:             37
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:                128
+     sky130_fd_sc_hd__a31oi_1       16
+     sky130_fd_sc_hd__mux2_1        16
+     sky130_fd_sc_hd__mux4_2        48
+     sky130_fd_sc_hd__nand2_1       16
+     sky130_fd_sc_hd__nand2b_1      16
+     sky130_fd_sc_hd__nor2_1        16
+
+   Chip area for module '\circular_shift_unit': 1581.516800
+     of which used for sequential elements: 0.000000 (0.00%)
+
