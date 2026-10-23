@@ -21,7 +21,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── logical_shift_unit_random_tb.v     random self-checking testbench
 │   ├── logical_shift_unit.png             waveform screenshot
 │   ├── synth/                             sky130 netlist and area report
-│   └── sta/                               OpenSTA timing report
+│   └── sta/                               OpenSTA timing and power reports
 ├── circular_shift_unit/
 │   ├── circular_shift_unit.v
 │   ├── circular_shift_unit_directed_tb.v
@@ -413,12 +413,14 @@ The inputs are driven by a `sky130_fd_sc_hd__inv_2` and each output drives 0.033
 
 ### Output
 
-The script prints a summary table. For each module it also writes `<module>/sta/<module>_<WIDTH>bit_sta.rpt`, containing:
+The script prints a summary table, and writes two reports per module to `<module>/sta/`:
 
-- the full longest (setup) and shortest (hold) paths, with slew, capacitance and delay at every cell
-- the max-transition design rule check
-- WNS and TNS
-- a power estimate using OpenSTA's default switching activity
+| File | Contents |
+|---|---|
+| `<module>_<WIDTH>bit_timing.rpt` | Full longest (setup) and shortest (hold) paths, with slew, capacitance and delay at every cell. Also the max-transition design rule check, WNS and TNS. |
+| `<module>_<WIDTH>bit_power.rpt` | Internal, switching and leakage power, in W. This is an estimate from OpenSTA's default input switching activity, not from simulation, so treat it as a rough comparison between modules. It scales with the clock rate, so it changes with `PERIOD`. |
+
+Both reports start with the same header listing the library, the constraint, the input drive and the output load.
 
 If a module misses timing at the given `PERIOD`, or breaks the max-transition rule, the summary ends with a warning. OpenSTA always exits with status 0, though, so scripts can't detect a failure from the exit code.
 

@@ -21,7 +21,9 @@
 # input-to-output delay as PERIOD - slack, and the worst hold slack gives the
 # shortest one.
 #
-# Outputs, per module: <module>/sta/<module>_<WIDTH>bit_sta.rpt
+# Outputs, per module, in <module>/sta/:
+#   <module>_<WIDTH>bit_timing.rpt   setup/hold paths, transition checks, WNS/TNS
+#   <module>_<WIDTH>bit_power.rpt    power estimate
 #
 # Note: OpenSTA runs a script one command at a time, keeps going after errors
 # and ignores "exit". Everything therefore lives in procs, and main stops with
@@ -64,12 +66,22 @@ proc append_header {rpt title} {
     close $fh
 }
 
+# Analysis conditions, written at the top of each report
+proc write_conditions {fh period} {
+    global lib_name driving_cell output_load
+    puts $fh "Library:      $lib_name"
+    puts $fh "Constraint:   virtual clock vclk, period $period ns, input/output delay 0"
+    puts $fh "Input drive:  $driving_cell"
+    puts $fh "Output load:  $output_load pF"
+}
+
 # Analyze one module and return its summary row
 proc analyze {root m width period} {
     global lib_name driving_cell output_load
 
     set out_dir [file join $root $m sta]
-    set rpt     [file join $out_dir "${m}_${width}bit_sta.rpt"]
+    set rpt     [file join $out_dir "${m}_${width}bit_timing.rpt"]
+    set pwr     [file join $out_dir "${m}_${width}bit_power.rpt"]
     file mkdir $out_dir
 
     read_verilog [file join $root $m synth "${m}_${width}bit_netlist.v"]
@@ -81,13 +93,10 @@ proc analyze {root m width period} {
     set_driving_cell -lib_cell $driving_cell -pin Y [all_inputs]
     set_load $output_load [all_outputs]
 
-    # ---- Full report
+    # ---- Timing report
     set fh [open $rpt w]
     puts $fh "Static timing analysis: $m, WIDTH = $width"
-    puts $fh "Library:      $lib_name"
-    puts $fh "Constraint:   virtual clock vclk, period $period ns, input/output delay 0"
-    puts $fh "Input drive:  $driving_cell"
-    puts $fh "Output load:  $output_load pF"
+    write_conditions $fh $period
     close $fh
 
     append_header $rpt "Longest path (setup)"
@@ -99,8 +108,17 @@ proc analyze {root m width period} {
     append_header $rpt "Slack"
     report_wns -digits 3 >> $rpt
     report_tns -digits 3 >> $rpt
-    append_header $rpt "Power (default switching activity)"
-    report_power -digits 3 >> $rpt
+
+    # ---- Power report
+    set fh [open $pwr w]
+    puts $fh "Power estimate: $m, WIDTH = $width"
+    write_conditions $fh $period
+    puts $fh "Activity:     OpenSTA default switching activity on the inputs (no simulation data)"
+    puts $fh "Units:        W"
+    close $fh
+
+    append_header $pwr "Power by group"
+    report_power -digits 3 >> $pwr
 
     # ---- Summary numbers
     set setup_slack [worst_slack -max]
