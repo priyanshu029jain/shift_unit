@@ -39,6 +39,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 ├── simulate.sh                            run a directed testbench and open GTKWave
 ├── simulate.bat                           same, for Windows PowerShell / cmd
 ├── random.sh                              run a random testbench and print the pass rate
+├── asic.sh                                synthesis + STA, prints area, timing and power
 ├── synthesis.tcl                          Yosys synthesis to sky130 + equivalence check
 ├── STA.tcl                                OpenSTA static timing analysis of the netlists
 ├── fpga.tcl                               Vivado FPGA implementation and reports
@@ -322,6 +323,30 @@ Circular shift unit:
 
 ![GTKWave output of the circular shift unit testbench](circular_shift_unit/circular_shift_unit.png)
 
+## ASIC summary
+
+`asic.sh` runs synthesis (`synthesis.tcl`) and then static timing analysis (`STA.tcl`, described below), and prints just the key numbers for each module:
+
+```text
+$ ./asic.sh barrel_shifter
+ASIC analysis: sky130_fd_sc_hd (tt, 25 C, 1.8 V), WIDTH = 16, clock period = 10 ns
+
+barrel_shifter
+  Area         1291.24 um^2  (187 cells)
+  Delay        2.359 ns max  (Fmax 423.9 MHz),  0.401 ns min
+  Timing       MET  (slack 7.641 ns),  transition OK
+  Critical     dir -> data_out[1]
+  Power        44.73 uW  (switching 44.73 uW, internal 0.00 uW, leakage 0.0005 uW) at 10 ns
+  Equivalence  PASS
+```
+
+```sh
+./asic.sh all                  # every module
+./asic.sh barrel_shifter 32 5  # WIDTH = 32, 5 ns clock period
+```
+
+It needs `yosys` and `sta` on the `PATH`, as in WSL or Linux with OSS CAD Suite and OpenSTA installed. It exits with status 1 if any module fails the equivalence check, misses timing, or breaks the max-transition rule. The full netlists and reports are still written to `<module>/synth/` and `<module>/sta/`. Like the other scripts, it can be linked into `~/bin` as `asic`.
+
 ## Synthesis
 
 `synthesis.tcl` synthesizes the modules with [Yosys](https://github.com/YosysHQ/yosys) to the SkyWater 130 nm high-density standard-cell library (`sky130_fd_sc_hd`, typical corner: 25 °C, 1.8 V). It then formally proves that each gate-level netlist is equivalent to its RTL.
@@ -371,6 +396,8 @@ Outputs per module, in `<module>/synth/`:
 
 The script exits with status 1 if any netlist fails the equivalence check.
 
+When `all` is given, each module is synthesized in its own Yosys process. ABC's mapping depends on internal net numbering, which Yosys doesn't fully reset between designs in one session. Running each module separately means its netlist is identical whether it is synthesized alone or together with the others.
+
 ### Results
 
 At the default `WIDTH = 16`:
@@ -379,7 +406,7 @@ At the default `WIDTH = 16`:
 |---|---|---|---|
 | `logical_shift_unit` | 134 | 967.18 | Pass |
 | `circular_shift_unit` | 128 | 1581.52 | Pass |
-| `arithmetic_shift_unit` | 155 | 1047.25 | Pass |
+| `arithmetic_shift_unit` | 165 | 1126.08 | Pass |
 | `barrel_shifter` | 187 | 1291.24 | Pass |
 
 Area is the sum of the cell areas from the liberty file. It does not include routing or placement overhead.
@@ -436,7 +463,7 @@ At `WIDTH = 16`, `PERIOD = 10` ns:
 |---|---|---|---|---|---|
 | `logical_shift_unit` | 2.008 | 497.9 | 0.438 | OK | `shamt[0]` → `data_out[4]` |
 | `circular_shift_unit` | 2.192 | 456.2 | 0.484 | OK | `shamt[0]` → `data_out[1]` |
-| `arithmetic_shift_unit` | 2.132 | 469.0 | 0.389 | OK | `dir` → `data_out[7]` |
+| `arithmetic_shift_unit` | 2.018 | 495.6 | 0.455 | OK | `dir` → `data_out[11]` |
 | `barrel_shifter` | 2.359 | 423.9 | 0.401 | OK | `dir` → `data_out[1]` |
 
 All four meet timing at 10 ns with more than 7.6 ns of slack. The critical paths start at `dir` or `shamt`, the control inputs that fan out to every bit. A large share of each path is the input itself charging that fanout: in the barrel shifter, `dir` alone takes 0.50 ns. Another large share is the last gate driving the output load.

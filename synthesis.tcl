@@ -60,6 +60,25 @@ if {![file exists $lib]} {
 
 set summary {}
 
+# Yosys keeps some internal numbering across "design -reset", and ABC's result
+# depends on it, so a module synthesized after others in the same session can
+# come out differently than when synthesized alone. To get the same netlist
+# either way, several modules are each run in a fresh Yosys process.
+if {[llength $targets] > 1} {
+    set yosys_exe [info nameofexecutable]
+    if {$yosys_exe eq ""} { set yosys_exe yosys }
+    foreach m $targets {
+        # A non-zero exit (failed equivalence) still prints the summary row
+        catch {exec $yosys_exe -q -c [file join $root synthesis.tcl] -- $m $width 2>@1} out
+        if {![regexp -line "^$m\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)" $out -> cells area equiv]} {
+            puts $out
+            exit 1
+        }
+        lappend summary [list $m $cells $area $equiv]
+    }
+    set targets {}
+}
+
 foreach m $targets {
     set out_dir  [file join $root $m synth]
     set base     [file join $out_dir "${m}_${width}bit"]
