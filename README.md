@@ -21,7 +21,8 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   ├── logical_shift_unit_random_tb.v     random self-checking testbench
 │   ├── logical_shift_unit.png             waveform screenshot
 │   ├── synth/                             sky130 netlist and area report
-│   └── sta/                               OpenSTA timing and power reports
+│   ├── sta/                               OpenSTA timing and power reports
+│   └── fpga/                              Vivado utilization, timing and power reports
 ├── circular_shift_unit/
 │   ├── circular_shift_unit.v
 │   ├── circular_shift_unit_directed_tb.v
@@ -40,6 +41,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 ├── random.sh                              run a random testbench and print the pass rate
 ├── synthesis.tcl                          Yosys synthesis to sky130 + equivalence check
 ├── STA.tcl                                OpenSTA static timing analysis of the netlists
+├── fpga.tcl                               Vivado FPGA implementation and reports
 ├── .gitattributes
 ├── .gitignore
 ├── LICENSE
@@ -438,6 +440,62 @@ At `WIDTH = 16`, `PERIOD = 10` ns:
 | `barrel_shifter` | 2.359 | 423.9 | 0.401 | OK | `dir` → `data_out[1]` |
 
 All four meet timing at 10 ns with more than 7.6 ns of slack. The critical paths start at `dir` or `shamt`, the control inputs that fan out to every bit. A large share of each path is the input itself charging that fanout: in the barrel shifter, `dir` alone takes 0.50 ns. Another large share is the last gate driving the output load.
+
+## FPGA implementation
+
+`fpga.tcl` implements each module on an AMD FPGA with Vivado, running synthesis, placement and routing. It then writes utilization, timing and power reports. It works from the RTL and does not need the Yosys netlists.
+
+```powershell
+vivado -mode batch -nojournal -nolog -notrace -source fpga.tcl                                      # all modules
+vivado -mode batch -nojournal -nolog -notrace -source fpga.tcl -tclargs barrel_shifter               # one module
+vivado -mode batch -nojournal -nolog -notrace -source fpga.tcl -tclargs all 32 5 xc7z020clg400-1     # width, period, part
+```
+
+The arguments after `-tclargs` are all optional, and go in this order:
+
+| Argument | Default | Meaning |
+|---|---|---|
+| module | `all` | Module to implement, or `all` |
+| `WIDTH` | `16` | Data width |
+| `PERIOD` | `10` | Clock period constraint, in ns |
+| part | `xc7a35tcpg236-1` | Vivado part. The default is the Artix-7 on the Basys 3 board. |
+
+On Windows, if `vivado` isn't on your `PATH`, call it by its full path, for example `C:\AMDDesignTools\2025.2\Vivado\bin\vivado.bat`. Vivado creates a `.Xil/` folder in the current directory, which is ignored by git. The run exits with status 1 if any module misses timing.
+
+### How it's measured
+
+The shift units are combinational, so on their own there is no register-to-register path to time. The script therefore wraps each one in a register stage on every input and output, clocked by `clk`:
+
+```text
+input registers  ->  shift unit (LUTs + routing)  ->  output registers
+```
+
+The worst register-to-register path then measures the shift unit itself, fully placed and routed, and Fmax comes straight from it. The clock also gives the power estimate real switching activity. The wrapper is generated on the fly, and the shift unit is kept as its own hierarchy (`dut`), so its resources can be reported separately from the wrapper's registers.
+
+The design is implemented out of context, with no I/O buffers or pin assignments, because the unit is a block meant to sit inside a larger design. That also means wide versions aren't limited by the package's pin count. `clk` is assumed to come from a global clock buffer, so that clock skew is still estimated. Vivado warns that the top-level ports have no partition pin locations. Those warnings only affect the paths from the ports to the input registers, which are not timed.
+
+### Output
+
+| File (in `<module>/fpga/`) | Contents |
+|---|---|
+| `<module>_<WIDTH>bit_utilization.rpt` | LUTs, registers, muxes and slices for the whole design, then broken down by hierarchy, with the shift unit as `dut` |
+| `<module>_<WIDTH>bit_timing.rpt` | Timing summary (WNS, TNS, WHS, THS) and the 10 worst paths, with logic and routing delay per stage |
+| `<module>_<WIDTH>bit_power.rpt` | Vectorless power estimate in mW: device static power, and dynamic power by type and by hierarchy |
+
+### Results
+
+Vivado 2025.2, `xc7a35tcpg236-1` (Artix-7, speed grade −1), `WIDTH = 16`, `PERIOD = 10` ns:
+
+| Module | LUTs | F7/F8 muxes | Path delay (ns) | Logic levels | Fmax (MHz) | Dynamic power (mW) |
+|---|---|---|---|---|---|---|
+| `logical_shift_unit` | 61 | 16 | 3.567 | 3 | 284.3 | 1.050 |
+| `circular_shift_unit` | 56 | 0 | 4.013 | 3 | 246.4 | 1.146 |
+| `arithmetic_shift_unit` | 61 | 6 | 4.041 | 3 | 247.6 | 1.085 |
+| `barrel_shifter` | 78 | 0 | 5.333 | 4 | 183.4 | 1.330 |
+
+- **Resources:** LUTs and muxes are for the shift unit alone. LUTs are Vivado's "Slice LUTs", which count two small LUTs packed into one LUT6 site once. The wrapper adds 37 flip-flops, or 39 for the barrel shifter, which also has its 2-bit `mode` input.
+- **Timing:** path delay is the worst register-to-register delay, including clock-to-Q. About three quarters of it is routing. All four modules meet the 10 ns constraint.
+- **Power:** dynamic power is for the whole wrapper, at the default switching activity. Total on-chip power is about 69.5 mW for every module, almost all of it the device's static power.
 
 ## License
 
