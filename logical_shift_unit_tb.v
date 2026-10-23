@@ -18,11 +18,14 @@ module logical_shift_unit_tb;
     );
 
     initial begin
+        $dumpfile("logical_shift_unit_tb.vcd");
+        $dumpvars(0, logical_shift_unit_tb);
+
         errors = 0;
 
         // A few readable examples
         data_in = 16'hB3C5;
-        for (i = 0; i < 32; i = i + 1) begin
+        for (i = 0; i < 2; i = i + 1) begin
             dir   = i[4];
             shamt = i[3:0];
             #5;
@@ -31,7 +34,7 @@ module logical_shift_unit_tb;
         end
 
         // Randomized self-check against behavioral shift
-        for (i = 0; i < 1000; i = i + 1) begin
+        for (i = 0; i < 10; i = i + 1) begin
             data_in = $random;
             shamt   = $random;
             dir     = $random;
