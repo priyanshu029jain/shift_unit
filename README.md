@@ -35,6 +35,7 @@ Each module has its own folder, holding the design, its two testbenches and, whe
 │   └── barrel_shifter_random_tb.v
 ├── simulate.sh                            run a directed testbench and open GTKWave
 ├── simulate.bat                           same, for Windows PowerShell / cmd
+├── random.sh                              run a random testbench and print the pass rate
 ├── .gitattributes
 ├── .gitignore
 ├── LICENSE
@@ -237,6 +238,15 @@ $env:NO_WAVE = "1"; .\simulate circular_shift_unit   # no GTKWave
 ```
 
 If `iverilog` comes from [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build), `simulate.bat` runs the suite's `environment.bat` first, because its tools crash without that setup. Git Bash users can run `./simulate.sh` instead.
+
+`random.sh` compiles and runs a module's random self-checking testbench, and prints only the result. It takes the module, an optional width, and an optional number of tests:
+
+```sh
+./random.sh barrel_shifter               # 1000/1000 passed (100.00%)
+./random.sh logical_shift_unit 32 5000   # WIDTH = 32, 5000 tests
+```
+
+It exits with status 0 when every test passes and 1 otherwise, so it can be used in scripts. It can be linked into `~/bin` the same way as `simulate.sh`, as `random`.
 
 The rest of this section shows how to run each step by hand, including the random self-checking testbenches.
 
